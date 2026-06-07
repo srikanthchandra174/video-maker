@@ -148,7 +148,7 @@ const $ = id => document.getElementById(id);
 const canvas = $('canvas'), ctx = canvas.getContext('2d');
 let photos = [];           // {img, name}
 let settings = { ratio:'9:16', dur:3, ken:true, fade:true };
-let audioEl = null, audioCtx = null, srcNode = null;
+let audioCtx = null, audioBuffer = null, curSource = null;
 let playing = false, recording = false;
 
 const RATIOS = { '9:16':[1080,1920], '4:5':[1080,1350], '1:1':[1080,1080] };
@@ -191,11 +191,14 @@ $('aspect').addEventListener('change',e=>{settings.ratio=e.target.value;applySiz
 $('dur').addEventListener('input',e=>{settings.dur=parseFloat(e.target.value);$('durVal').textContent=settings.dur.toFixed(1)+'s';updateEstimate();});
 $('ken').addEventListener('change',e=>settings.ken=e.target.checked);
 $('fade').addEventListener('change',e=>settings.fade=e.target.checked);
-$('audio').addEventListener('change',e=>{
+$('audio').addEventListener('change', async e=>{
   const f=e.target.files[0]; if(!f)return;
-  if(audioEl){audioEl.pause();}
-  audioEl = new Audio(URL.createObjectURL(f)); audioEl.preload='auto'; srcNode=null;
-  $('status').textContent='Music loaded ✓';
+  try{
+    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const arr = await f.arrayBuffer();
+    audioBuffer = await audioCtx.decodeAudioData(arr);
+    $('status').textContent = `Music loaded ✓ (${audioBuffer.duration.toFixed(0)}s)`;
+  }catch(err){ audioBuffer=null; $('status').textContent='Could not read that audio file — try an MP3 or WAV.'; }
 });
 function applySize(){const [w,h]=RATIOS[settings.ratio];canvas.width=w;canvas.height=h;}
 function updateEstimate(){
@@ -252,13 +255,22 @@ function loop(onDone){
   renderAt(t);
   rafId=requestAnimationFrame(()=>loop(onDone));
 }
-function startAudio(){ if(audioEl){ try{audioEl.currentTime=0;audioEl.play();}catch(e){} } }
-function stopAudio(){ if(audioEl){ audioEl.pause(); } }
+function startAudio(extraDest){
+  stopAudio();
+  if(!audioBuffer || !audioCtx) return;
+  curSource = audioCtx.createBufferSource();
+  curSource.buffer = audioBuffer;
+  curSource.connect(audioCtx.destination);     // so you hear it
+  if(extraDest) curSource.connect(extraDest);   // so it's recorded
+  curSource.start();
+}
+function stopAudio(){ if(curSource){ try{curSource.stop();}catch(e){} try{curSource.disconnect();}catch(e){} curSource=null; } }
 
-$('playBtn').addEventListener('click', ()=>{
+$('playBtn').addEventListener('click', async ()=>{
   if(!photos.length){$('status').textContent='Add some photos first.';return;}
   if(playing){return;}
   playing=true; $('status').textContent='Previewing…';
+  if(audioCtx) await audioCtx.resume();
   startAudio(); clockStart=performance.now(); loop(()=>{playing=false;$('status').textContent='';});
 });
 
@@ -278,22 +290,19 @@ $('exportBtn').addEventListener('click', async ()=>{
   const vStream = canvas.captureStream(30);
   let tracks = [...vStream.getVideoTracks()];
   let recDest=null;
-  if(audioEl){
+  if(audioBuffer){
     try{
       audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
       await audioCtx.resume();
-      if(!srcNode){ srcNode = audioCtx.createMediaElementSource(audioEl); srcNode.connect(audioCtx.destination); }
       recDest = audioCtx.createMediaStreamDestination();
-      srcNode.connect(recDest);
       tracks = tracks.concat(recDest.stream.getAudioTracks());
-    }catch(e){ /* proceed video-only */ }
+    }catch(e){ recDest=null; }
   }
   const stream = new MediaStream(tracks);
   const rec = new MediaRecorder(stream, {mimeType:mime, videoBitsPerSecond:8_000_000});
   const chunks=[];
   rec.ondataavailable=e=>{ if(e.data.size) chunks.push(e.data); };
   rec.onstop=()=>{
-    if(recDest && srcNode){ try{srcNode.disconnect(recDest);}catch(e){} }
     const blob=new Blob(chunks,{type:mime});
     const ext=mime.includes('mp4')?'mp4':'webm';
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`slideshow.${ext}`; a.click();
@@ -306,7 +315,7 @@ $('exportBtn').addEventListener('click', async ()=>{
   recording=true; $('exportBtn').disabled=true; $('playBtn').disabled=true;
   $('status').className='status rec'; $('status').textContent='● Recording… keep this tab in front';
   rec.start();
-  startAudio(); clockStart=performance.now();
+  startAudio(recDest); clockStart=performance.now();
   loop(()=>{ setTimeout(()=>{ try{rec.stop();}catch(e){} $('status').className='status'; }, 200); });
 });
 </script>
