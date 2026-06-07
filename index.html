@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photo → Video Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e0f13;--surface:#181a20;--surface-2:#20232b;--border:#2a2e38;
+    --text:#eef0f4;--dim:#9aa0ab;--accent:#7c5cff;--accent-2:#a06bff;
+    --accent-soft:rgba(124,92,255,.16);--ok:#37c98b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:radial-gradient(900px 500px at 80% -8%, #1a1c27 0%, transparent 55%),var(--bg);
+    color:var(--text);font-family:"Manrope",system-ui,sans-serif;min-height:100vh;
+    -webkit-font-smoothing:antialiased;padding:clamp(14px,3vw,30px)}
+  .wrap{max-width:1080px;margin:0 auto}
+  button,input,select{font-family:inherit}
+  h1{font-family:"Sora",sans-serif;font-weight:800;font-size:clamp(1.3rem,4vw,1.7rem);display:flex;align-items:center;gap:10px}
+  .logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center}
+  .logo svg{width:20px;height:20px;fill:#fff}
+  .sub{color:var(--dim);font-size:.9rem;margin:6px 0 22px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px}
+  .panel h2{font-family:"Sora",sans-serif;font-size:1rem;margin-bottom:14px}
+
+  .drop{border:2px dashed var(--border);border-radius:12px;padding:26px;text-align:center;color:var(--dim);
+    cursor:pointer;transition:all .2s;font-size:.9rem}
+  .drop:hover,.drop.over{border-color:var(--accent);color:var(--text);background:var(--accent-soft)}
+  .thumbs{display:flex;flex-direction:column;gap:8px;margin-top:14px;max-height:340px;overflow-y:auto}
+  .thumb{display:flex;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--border);
+    border-radius:10px;padding:7px}
+  .thumb img{width:48px;height:48px;object-fit:cover;border-radius:7px;flex:0 0 auto}
+  .thumb .nm{flex:1;font-size:.8rem;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .thumb button{background:transparent;border:1px solid var(--border);color:var(--dim);border-radius:7px;
+    width:30px;height:30px;cursor:pointer;font-size:.9rem;transition:all .15s}
+  .thumb button:hover{border-color:var(--accent);color:var(--text)}
+  .thumb button.del:hover{border-color:#ff5247;color:#ff5247}
+
+  .field{margin-bottom:15px}
+  .field label{display:block;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin-bottom:7px;font-weight:600}
+  .field select,.field input[type=file]{width:100%;background:var(--surface-2);border:1px solid var(--border);
+    color:var(--text);border-radius:10px;padding:11px 12px;font-size:.9rem;color-scheme:dark}
+  .field select:focus{outline:none;border-color:var(--accent)}
+  .row{display:flex;align-items:center;gap:12px}
+  input[type=range]{flex:1;accent-color:var(--accent)}
+  .val{font-variant-numeric:tabular-nums;font-weight:700;min-width:54px;text-align:right;font-size:.9rem}
+  .toggle{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:.9rem;user-select:none}
+  .toggle input{width:18px;height:18px;accent-color:var(--accent)}
+
+  .stage{display:flex;flex-direction:column;align-items:center;gap:14px}
+  .canvas-wrap{background:#000;border-radius:14px;overflow:hidden;border:1px solid var(--border);
+    width:100%;display:flex;align-items:center;justify-content:center}
+  canvas{display:block;max-width:100%;max-height:60vh;height:auto}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:100%}
+  .btn{border:none;border-radius:11px;padding:13px 22px;font-weight:700;font-size:.92rem;cursor:pointer;transition:transform .15s,box-shadow .2s;display:flex;align-items:center;gap:8px}
+  .btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 12px 30px var(--accent-soft)}
+  .btn-ghost{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+  .btn-ghost:hover{border-color:var(--accent)}
+  .btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+  .status{font-size:.85rem;color:var(--dim);min-height:1.2em;text-align:center}
+  .status.rec{color:#ff5247;font-weight:600}
+
+  .music a{color:var(--accent-2);text-decoration:none;font-weight:600}
+  .music a:hover{text-decoration:underline}
+  .music li{margin:6px 0;font-size:.86rem;color:var(--dim)}
+  .note{background:var(--surface-2);border:1px solid var(--border);border-left:4px solid var(--accent);
+    border-radius:10px;padding:12px 14px;font-size:.8rem;color:var(--dim);line-height:1.6;margin-top:14px}
+  .note b{color:var(--text)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span class="logo"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4zM2 4v16h20V4zm8 4l5 4-5 4z"/></svg></span> Photo → Video Maker</h1>
+  <p class="sub">Combine photos into a slideshow with effects and music, then export for Instagram.</p>
+
+  <div class="grid2">
+    <!-- LEFT: inputs -->
+    <div>
+      <div class="panel">
+        <h2>1 · Add photos</h2>
+        <div class="drop" id="drop">Tap to choose photos, or drag &amp; drop here<br><span style="font-size:.78rem">JPG / PNG · they play in the order below</span></div>
+        <input type="file" id="fileInput" accept="image/*" multiple hidden>
+        <div class="thumbs" id="thumbs"></div>
+      </div>
+
+      <div class="panel" style="margin-top:18px">
+        <h2>2 · Settings</h2>
+        <div class="field">
+          <label for="aspect">Format (aspect ratio)</label>
+          <select id="aspect">
+            <option value="9:16" selected>9:16 — Reels / Stories (recommended)</option>
+            <option value="4:5">4:5 — Feed (tall)</option>
+            <option value="1:1">1:1 — Square feed</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Seconds per photo</label>
+          <div class="row"><input type="range" id="dur" min="1.5" max="6" step="0.5" value="3"><span class="val" id="durVal">3.0s</span></div>
+        </div>
+        <div class="field">
+          <label class="toggle"><input type="checkbox" id="ken" checked> Ken Burns zoom/pan effect</label>
+        </div>
+        <div class="field">
+          <label class="toggle"><input type="checkbox" id="fade" checked> Crossfade transitions</label>
+        </div>
+        <div class="field">
+          <label for="audio">Background music (optional — upload a royalty-free track)</label>
+          <input type="file" id="audio" accept="audio/*">
+        </div>
+        <div class="note" id="estimate">Add photos to see the estimated length.</div>
+      </div>
+
+      <div class="panel music" style="margin-top:18px">
+        <h2>🎵 Where to get free music</h2>
+        <ul>
+          <li><a href="https://pixabay.com/music/" target="_blank" rel="noopener">Pixabay Music</a> — free, no attribution needed</li>
+          <li><a href="https://studio.youtube.com" target="_blank" rel="noopener">YouTube Audio Library</a> — large, many no-attribution tracks</li>
+          <li><a href="https://mixkit.co/free-stock-music/" target="_blank" rel="noopener">Mixkit</a> · <a href="https://www.chosic.com/free-music/all/" target="_blank" rel="noopener">Chosic</a> — free, license-labelled</li>
+        </ul>
+        <div class="note">Download a track, then upload it above. For a <b>trending Instagram song</b>, export this video music-free and add the song inside Instagram (it has the licences).</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: preview + export -->
+    <div>
+      <div class="panel stage">
+        <h2 style="align-self:flex-start">3 · Preview &amp; export</h2>
+        <div class="canvas-wrap"><canvas id="canvas" width="1080" height="1920"></canvas></div>
+        <div class="controls">
+          <button class="btn btn-ghost" id="playBtn">▶ Preview</button>
+          <button class="btn btn-primary" id="exportBtn">⬇ Export video</button>
+        </div>
+        <div class="status" id="status"></div>
+        <div class="note"><b>Export note:</b> recording happens in real time (as long as the video). Output is <b>MP4</b> on iPhone/Safari, <b>WebM</b> on most Android/Chrome browsers. Instagram prefers MP4 — if you get a WebM, convert it (e.g. CloudConvert) or run the export on an iPhone. Keep this tab in front while exporting.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const canvas = $('canvas'), ctx = canvas.getContext('2d');
+let photos = [];           // {img, name}
+let settings = { ratio:'9:16', dur:3, ken:true, fade:true };
+let audioEl = null, audioCtx = null, srcNode = null;
+let playing = false, recording = false;
+
+const RATIOS = { '9:16':[1080,1920], '4:5':[1080,1350], '1:1':[1080,1080] };
+const TRANS = 0.6;         // transition seconds
+
+/* ---------- photo input ---------- */
+$('drop').addEventListener('click', ()=>$('fileInput').click());
+$('fileInput').addEventListener('change', e=>addFiles(e.target.files));
+const drop = $('drop');
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop', e=>addFiles(e.dataTransfer.files));
+
+function addFiles(list){
+  const files = [...list].filter(f=>f.type.startsWith('image/'));
+  let pending = files.length;
+  files.forEach(f=>{
+    const img = new Image();
+    img.onload = ()=>{ photos.push({img,name:f.name}); if(--pending===0){renderThumbs();drawStatic();updateEstimate();} };
+    img.onerror = ()=>{ if(--pending===0){renderThumbs();drawStatic();updateEstimate();} };
+    img.src = URL.createObjectURL(f);
+  });
+}
+function renderThumbs(){
+  const c = $('thumbs'); c.innerHTML='';
+  photos.forEach((p,i)=>{
+    const row = document.createElement('div'); row.className='thumb';
+    const im = document.createElement('img'); im.src = p.img.src;
+    const nm = document.createElement('div'); nm.className='nm'; nm.textContent = `${i+1}. ${p.name}`;
+    const up = mkBtn('↑', ()=>move(i,-1)); const dn = mkBtn('↓', ()=>move(i,1));
+    const del = mkBtn('✕', ()=>{photos.splice(i,1);renderThumbs();drawStatic();updateEstimate();}); del.classList.add('del');
+    row.append(im,nm,up,dn,del); c.appendChild(row);
+  });
+}
+function mkBtn(t,fn){const b=document.createElement('button');b.textContent=t;b.onclick=fn;return b;}
+function move(i,d){const j=i+d; if(j<0||j>=photos.length)return; [photos[i],photos[j]]=[photos[j],photos[i]]; renderThumbs();}
+
+/* ---------- settings ---------- */
+$('aspect').addEventListener('change',e=>{settings.ratio=e.target.value;applySize();drawStatic();});
+$('dur').addEventListener('input',e=>{settings.dur=parseFloat(e.target.value);$('durVal').textContent=settings.dur.toFixed(1)+'s';updateEstimate();});
+$('ken').addEventListener('change',e=>settings.ken=e.target.checked);
+$('fade').addEventListener('change',e=>settings.fade=e.target.checked);
+$('audio').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f)return;
+  if(audioEl){audioEl.pause();}
+  audioEl = new Audio(URL.createObjectURL(f)); audioEl.preload='auto'; srcNode=null;
+  $('status').textContent='Music loaded ✓';
+});
+function applySize(){const [w,h]=RATIOS[settings.ratio];canvas.width=w;canvas.height=h;}
+function updateEstimate(){
+  const t = photos.length*settings.dur;
+  $('estimate').innerHTML = photos.length ? `Estimated length: <b>${t.toFixed(1)} seconds</b> · ${photos.length} photo(s) · ${settings.ratio}` : 'Add photos to see the estimated length.';
+}
+applySize();
+
+/* ---------- drawing ---------- */
+function drawCover(img, scale, panX, panY, alpha){
+  const cw=canvas.width, ch=canvas.height;
+  const ir=img.width/img.height, cr=cw/ch;
+  let dw,dh;
+  if(ir>cr){dh=ch;dw=ch*ir;}else{dw=cw;dh=cw/ir;}
+  dw*=scale; dh*=scale;
+  const dx=(cw-dw)/2+panX, dy=(ch-dh)/2+panY;
+  ctx.globalAlpha=alpha;
+  ctx.drawImage(img,dx,dy,dw,dh);
+  ctx.globalAlpha=1;
+}
+function slideParams(prog){
+  const scale = settings.ken ? 1.0 + 0.10*prog : 1.0;
+  const panX  = settings.ken ? (prog-0.5)*canvas.width*0.05 : 0;
+  return {scale,panX};
+}
+function renderAt(t){
+  const n=photos.length; if(!n)return;
+  const dur=settings.dur, total=n*dur;
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  let idx=Math.floor(t/dur); if(idx>=n)idx=n-1;
+  const local=t-idx*dur, p=Math.min(1,local/dur);
+  if(settings.fade && idx>0 && local<TRANS){
+    const a=local/TRANS;
+    const prev=slideParams(1); drawCover(photos[idx-1].img,prev.scale,prev.panX,0,1);
+    const cur=slideParams(p);  drawCover(photos[idx].img,cur.scale,cur.panX,0,a);
+  } else {
+    const cur=slideParams(p);  drawCover(photos[idx].img,cur.scale,cur.panX,0,1);
+  }
+}
+function drawStatic(){
+  if(!photos.length){ctx.fillStyle='#000';ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#555';ctx.font='40px Sora, sans-serif';ctx.textAlign='center';
+    ctx.fillText('Add photos to preview', canvas.width/2, canvas.height/2); return;}
+  renderAt(0);
+}
+drawStatic();
+
+/* ---------- preview ---------- */
+let rafId=null, clockStart=0;
+function loop(onDone){
+  const total=photos.length*settings.dur;
+  const t=(performance.now()-clockStart)/1000;
+  if(t>=total){ renderAt(total-0.001); stopAudio(); cancelAnimationFrame(rafId); rafId=null; playing=false; onDone&&onDone(); return; }
+  renderAt(t);
+  rafId=requestAnimationFrame(()=>loop(onDone));
+}
+function startAudio(){ if(audioEl){ try{audioEl.currentTime=0;audioEl.play();}catch(e){} } }
+function stopAudio(){ if(audioEl){ audioEl.pause(); } }
+
+$('playBtn').addEventListener('click', ()=>{
+  if(!photos.length){$('status').textContent='Add some photos first.';return;}
+  if(playing){return;}
+  playing=true; $('status').textContent='Previewing…';
+  startAudio(); clockStart=performance.now(); loop(()=>{playing=false;$('status').textContent='';});
+});
+
+/* ---------- export ---------- */
+function pickMime(){
+  const types=['video/mp4;codecs=h264,aac','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+  for(const t of types){ if(window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t; }
+  return '';
+}
+$('exportBtn').addEventListener('click', async ()=>{
+  if(!photos.length){$('status').textContent='Add some photos first.';return;}
+  if(recording||playing)return;
+  const mime=pickMime();
+  if(!mime){$('status').textContent='Sorry, your browser cannot record video. Try Chrome or Safari.';return;}
+
+  // build combined stream (canvas video + optional audio)
+  const vStream = canvas.captureStream(30);
+  let tracks = [...vStream.getVideoTracks()];
+  let recDest=null;
+  if(audioEl){
+    try{
+      audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+      await audioCtx.resume();
+      if(!srcNode){ srcNode = audioCtx.createMediaElementSource(audioEl); srcNode.connect(audioCtx.destination); }
+      recDest = audioCtx.createMediaStreamDestination();
+      srcNode.connect(recDest);
+      tracks = tracks.concat(recDest.stream.getAudioTracks());
+    }catch(e){ /* proceed video-only */ }
+  }
+  const stream = new MediaStream(tracks);
+  const rec = new MediaRecorder(stream, {mimeType:mime, videoBitsPerSecond:8_000_000});
+  const chunks=[];
+  rec.ondataavailable=e=>{ if(e.data.size) chunks.push(e.data); };
+  rec.onstop=()=>{
+    if(recDest && srcNode){ try{srcNode.disconnect(recDest);}catch(e){} }
+    const blob=new Blob(chunks,{type:mime});
+    const ext=mime.includes('mp4')?'mp4':'webm';
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`slideshow.${ext}`; a.click();
+    URL.revokeObjectURL(a.href);
+    recording=false;
+    $('status').textContent=`Done ✓ Saved slideshow.${ext}` + (ext==='webm'?' (convert to MP4 for Instagram if needed)':'');
+    $('exportBtn').disabled=false; $('playBtn').disabled=false;
+  };
+
+  recording=true; $('exportBtn').disabled=true; $('playBtn').disabled=true;
+  $('status').className='status rec'; $('status').textContent='● Recording… keep this tab in front';
+  rec.start();
+  startAudio(); clockStart=performance.now();
+  loop(()=>{ setTimeout(()=>{ try{rec.stop();}catch(e){} $('status').className='status'; }, 200); });
+});
+</script>
+</body>
+</html>
